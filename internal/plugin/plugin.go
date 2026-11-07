@@ -44,6 +44,8 @@ import (
 
 const (
 	callTimeout = 30 * time.Second
+	// Researching and writing an explanation can take longer than a catalog call.
+	explainTimeout = 2 * time.Minute
 	// Signing in waits for the listener, in their browser.
 	signInTimeout = 5 * time.Minute
 	// A runtime that doesn't take on a task in this long is stuck in the
@@ -393,13 +395,13 @@ const fail = (e) => {
   bad(String((isObject && e.code) || ""), isObject ? String(e.message || "") : String(e));
 };
 try {
-  Promise.resolve(fn(arg)).then((r) => ok(r === undefined ? null : r), fail);
+  Promise.resolve(fn(arg, chunk)).then((r) => ok(r === undefined ? null : r), fail);
 } catch (e) {
   fail(e);
 }`
 
 var helperScript = func() *moejs.Script {
-	s, err := moejs.CompileFunction("host-call", "fn, arg, ok, bad", helperBody, moejs.FunctionOptions{})
+	s, err := moejs.CompileFunction("host-call", "fn, arg, ok, bad, chunk", helperBody, moejs.FunctionOptions{})
 	if err != nil {
 		panic(err)
 	}
@@ -527,24 +529,30 @@ func asError(code, message string) error {
 
 // ask calls an export on the loop; the answer comes through got, once.
 func (v *vm) ask(method string, params []byte, got func(answer)) {
+	v.askStreaming(method, params, nil, func(a answer, _ bool) { got(a) })
+}
+
+// askStreaming also passes chunk to the export, which may call it with partial
+// answers. Both chunks and the final answer go through emit in runtime order.
+func (v *vm) askStreaming(method string, params []byte, chunk func(answer), emit func(answer, bool)) {
 	rt := v.rt
 	fn, ok := rt.Export(method)
 	if !ok {
-		got(answer{err: music.ErrUnsupported})
+		emit(answer{err: music.ErrUnsupported}, true)
 		return
 	}
 	arg := moejs.Undefined()
 	if params != nil {
 		var err error
 		if arg, err = rt.ParseJSON(params); err != nil {
-			got(answer{err: err})
+			emit(answer{err: err}, true)
 			return
 		}
 	}
 	// The call's data goes once nothing is using it. It can't go any sooner, as
 	// another call may be waiting on something with its own.
 	done := func(a answer) {
-		got(a)
+		emit(a, true)
 		v.inFlight--
 		v.loop.RunOnLoop(func(rt *moejs.Runtime) {
 			if v.inFlight == 0 {
@@ -562,7 +570,15 @@ func (v *vm) ask(method string, params []byte, got func(answer)) {
 		done(answer{err: asError(moejs.Arg(args, 0).String(), moejs.Arg(args, 1).String())})
 		return moejs.Undefined(), nil
 	})
-	if _, err := rt.CallFunction(v.helper, moejs.Undefined(), fn, arg, okFn, badFn); err != nil {
+	chunkFn := moejs.Undefined()
+	if chunk != nil {
+		chunkFn = rt.Function("chunk", 1, func(_ *moejs.Realm, _ moejs.Value, args []moejs.Value) (moejs.Value, error) {
+			out, err := rt.AppendJSON(nil, moejs.Arg(args, 0))
+			chunk(answer{json: out, err: err})
+			return moejs.Undefined(), nil
+		})
+	}
+	if _, err := rt.CallFunction(v.helper, moejs.Undefined(), fn, arg, okFn, badFn, chunkFn); err != nil {
 		// Only an interrupt gets here: the helper catches what the plugin throws.
 		done(answer{err: err})
 	}
@@ -611,6 +627,62 @@ func (p *Plugin) callWithin(timeout time.Duration, method string, params, out an
 	}
 }
 
+// callStreamWithin decodes the final answer and passes each partial answer's
+// JSON to chunk before it. A single channel preserves the runtime's order.
+func (p *Plugin) callStreamWithin(timeout time.Duration, method string, params, out any, chunk func([]byte)) error {
+	if !p.exports[method] {
+		return music.ErrUnsupported
+	}
+	v, err := p.running()
+	if err != nil {
+		return err
+	}
+	var encoded []byte
+	if params != nil {
+		if encoded, err = json.Marshal(params); err != nil {
+			return err
+		}
+	}
+	type event struct {
+		answer answer
+		final  bool
+	}
+	events := make(chan event, 64)
+	if !v.loop.RunOnLoop(func(*moejs.Runtime) {
+		v.askStreaming(method, encoded, func(a answer) {
+			events <- event{answer: a}
+		}, func(a answer, final bool) {
+			events <- event{answer: a, final: final}
+		})
+	}) {
+		p.drop(v)
+		return fmt.Errorf("the plugin stopped; try again")
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		select {
+		case e := <-events:
+			if e.answer.err != nil {
+				return e.answer.err
+			}
+			if !e.final {
+				if chunk != nil {
+					chunk(e.answer.json)
+				}
+				continue
+			}
+			if out == nil {
+				return nil
+			}
+			return json.Unmarshal(e.answer.json, out)
+		case <-timer.C:
+			p.dropIfStuck(v)
+			return fmt.Errorf("the plugin didn't answer %s in time", method)
+		}
+	}
+}
+
 // dropIfStuck ends a runtime that takes on no more tasks, which code that never
 // returns, or passing the memory limit, leaves it as. A plugin only waiting on
 // something, and slow about it, goes on.
@@ -647,6 +719,10 @@ func (p *Plugin) Info() music.Info {
 	info.Settings = slices.Clone(info.Settings)
 	for i, st := range info.Settings {
 		info.Settings[i].Label, info.Settings[i].Help = p.t(st.Label), p.t(st.Help)
+		info.Settings[i].Options = slices.Clone(st.Options)
+		for j, option := range st.Options {
+			info.Settings[i].Options[j].Label = p.t(option.Label)
+		}
 	}
 	info.Navigation = slices.Clone(info.Navigation)
 	for i, n := range info.Navigation {

@@ -304,6 +304,12 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *music.Track, art *artwork, accen
 	if a.npPane == paneComments && !a.trackLib(tr).can("comments") {
 		a.npPane = paneQueue
 	}
+	if a.npPane == paneExplain && a.explanationLib(tr) == nil {
+		a.npPane = a.lyricsPaneChosen()
+		if tr.ShowID != "" {
+			a.npPane = paneShow
+		}
+	}
 	if a.npPane != paneQueue {
 		a.queueAt = -1
 	}
@@ -414,6 +420,8 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *music.Track, art *artwork, accen
 					a.showPane(c, tr)
 				case paneCaptions:
 					a.captionsPane(c, tr, h)
+				case paneExplain:
+					a.explanationPane(c, tr)
 				default:
 					a.queuePane(c)
 				}
@@ -473,6 +481,7 @@ const (
 	paneShow
 	paneCaptions
 	paneWall
+	paneExplain
 )
 
 // npTab is a tab of Now Playing: its pane, and what it says.
@@ -494,6 +503,9 @@ func (a *app) npTabs() []npTab {
 		tabs = append(tabs, npTab{paneQueue, T("Up Next")})
 	} else {
 		tabs = []npTab{{paneLyrics, T("Lyrics")}, {paneStage, T("Stage")}, {paneQueue, T("Up Next")}, {paneWall, T("Wall")}}
+	}
+	if tr != nil && a.explanationLib(tr) != nil {
+		tabs = append(tabs, npTab{paneExplain, T("Explain")})
 	}
 	if tr != nil && a.trackLib(tr).can("comments") {
 		tabs = append(tabs, npTab{paneComments, T("Comments")})
@@ -669,6 +681,15 @@ func (a *app) timedLines(c *ui.Context, scroll ui.Element, lines []lyrics.Line, 
 		ui.Column(c).Gap(6).Translate(0, -lag).Children(func() {
 			for i, l := range lines {
 				line := ui.ButtonBase(c.Key(i)).Column().AlignItems(ui.Start).Padding(10, 12).Radius(12).Gap(6).FocusRing(false).Label(l.Text)
+				if a.npPane == paneLyrics {
+					if tr := pl.Current(); tr != nil && a.explanationLib(tr) != nil {
+						line.ContextMenu(func(m *ui.Menu) {
+							if m.Item(T("Explain This Lyric")).Chosen() {
+								a.explainLyric(tr, l.Text, l.At)
+							}
+						})
+					}
+				}
 				on := i == cur
 				alpha := float32(0.28)
 				if on {

@@ -12,7 +12,7 @@ A native desktop music player written in Go with [MyGo](https://github.com/egois
 - Session restore
 - Podcast captions, written down on the device as episodes play
 - English and Simplified Chinese
-- Plugins can add accounts, catalogs, podcasts, stations, comments and pages of their own
+- Plugins can add accounts, catalogs, podcasts, stations, comments, song explanations and pages of their own
 
 ## Build
 
@@ -52,6 +52,8 @@ A plugin is a folder in the app's `plugins` directory (Settings > Plugins > + > 
   ]
 }
 ```
+
+A setting with `options` is a select instead of a text field: `options: [{"value":"en","label":"English"},{"value":"zh-CN","label":"简体中文"}]`. The app keeps `value` and translates `label` through the plugin's locales like the setting's own label and help.
 
 ```js
 export async function search({ query, kind, offset }) {
@@ -100,6 +102,8 @@ Export a function for each thing the plugin does. Each takes one object of param
 | `likeComment` | `{trackId, commentId, on}` | |
 | `postComment` | `{trackId, text}` | `Comment` |
 | `lyrics` | `{id}` | `{lrc, translation}`, or `{lines}` with timed `words` |
+| `explain` | `{track, lyric, position, question}` | `Explanation`; `lyric` and `position` identify a chosen line, and `question` is a follow-up |
+| `explainStream` | The same request, plus a second callback argument | Call the callback with partial `Explanation` objects and return the final one; used with `explain` |
 | `stream` | `{id, quality}` | `{url, type, headers, size, gain, peak}`, where `type` is `mp3`, `flac`, `ogg`, `wav`, `m4a` (ALAC, FLAC or AAC-LC, whole or in fragments as a DASH stream serves it) or `aac` (AAC-LC in ADTS) |
 | `remotePlay` | `{ids, start, position}` | |
 | `remotePause`, `remoteResume` | | |
@@ -110,6 +114,10 @@ Export a function for each thing the plugin does. Each takes one object of param
 | `remoteUse` | `{deviceId}` | |
 
 The shapes are in [`internal/music/music.go`](internal/music/music.go) by their JSON names. Times are in milliseconds. A `Browse` is `{title, subtitle, imageUrl, description, sections}`: with an `imageUrl`, such as a listener's avatar, it's headed round, as an artist's page is, and `description` goes under the title a line to each line. A section can hold `tracks`, `albums`, `artists`, `playlists`, `shows`, `stations`, `links` (`{title, subtitle, imageUrl, page}`), a `morePage`, and `empty`, what it says while it holds nothing. A source's first section of `tracks` leads its Home as a card of the day's songs, which opens a page of all of them, headed by the section's `pageTitle` if it has one, else its `title`, and its `subtitle` after the count of songs. A show's `publisherPage` is a `browse` page of who publishes it, which their name on the show's page opens.
+
+An `Explanation` is `{title, subtitle, summary, genres, sections, sources}`. Each section is `{title, body, items}`, and each source is `{title, url, publisher}`. The Explain tab requests the song on demand; a lyric's context menu requests that line and its timestamp. The track's own source gets the request first, otherwise the first enabled plugin exporting `explain` does, so a provider can explain local files too. Keep facts and interpretation distinct, and give sources for claims that can be checked. With `explainStream`, publish only complete fields of each partial answer; the app shows them as they arrive and ignores late chunks after the request changes.
+
+[`examples/song-explainer`](examples/song-explainer) is a working provider. It defaults to DeepSeek Flash (`deepseek-flash` at `https://api.deepseek.com`), streams OpenAI-compatible server-sent events, and uses DeepSeek's Search API for sources. Set its Base URL, Model and API Key to use another OpenAI-compatible provider. Output Language defaults to English and can be changed independently of the English research queries; set Web Research to `off` to skip DeepSeek search requests and their charges. The custom Base URL setting is why this example asks for broad network permission.
 
 An `imageUrl` can say where its size goes, with `{size}`, for an image server that makes pictures the size asked: `https://img.example.com/cover.jpg?param={size}y{size}` or `https://img.example.com/{size}/cover.jpg`. The app fills in how many pixels across it shows the picture at, 40 in a row and 600 in Now Playing, or 600 where nothing asks for a size. `%7Bsize%7D`, as JavaScript's `URL` writes it in a query, counts too. An app older than 0.1.20 fetches `{size}` as it is, so a plugin that gives it wants a `minAppVersion` of 0.1.20. Without it, give pictures at about 800 pixels if the service can, rather than as large as they were made: the app fetches and decodes the whole of each, a few megabytes for one thousands of pixels across, to show it in a row.
 

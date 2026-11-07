@@ -907,6 +907,31 @@ func TestLikeAskedBeforeAccountAskedAgain(t *testing.T) {
 	until(t, ch, func() bool { return a.isLiked(&tr) })
 }
 
+// A plugin setting with options is a select, and choosing its translated label
+// keeps the option's value rather than asking the listener to type it.
+func TestPluginSettingOptions(t *testing.T) {
+	a := newTestApp()
+	ch := posts(a)
+	fake(a).info.Settings = []music.Setting{{
+		Key: "outputLanguage", Label: "Output Language",
+		Options: []music.SettingOption{{Value: "en", Label: "English"}, {Value: "zh-CN", Label: "简体中文"}},
+	}}
+	a.settingsPage = "plugins"
+	tt := ui.NewTester(a.settingsView, 780, 800)
+	tt.Frame()
+	if err := tt.Click("English"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.Key(0, ui.KeyEnter)
+	runPost(t, ch)
+	if got := fake(a).vals["outputLanguage"]; got != "zh-CN" {
+		t.Errorf("kept %q", got)
+	}
+}
+
 // Changing the language says the app's words in it from the next frame on, and
 // English again once chosen.
 func TestSetLanguage(t *testing.T) {

@@ -117,24 +117,26 @@ type app struct {
 
 	suggestions suggestState // what the search field's query may be after
 
-	nowPlaying  bool
-	npOpen      bool    // Now Playing as it last showed: open or not
-	npT         float32 // how far open Now Playing last showed, 0 to 1
-	npShift     float32 // how far down it last showed, pulled
-	npPull      float32 // how far the pointer has pulled it down
-	npHeld      bool    // whether the pointer presses on it, to pull it
-	npStill     bool    // whether it comes and goes in place, sliding or fading, rather than out of the bar's cover
-	npFrom      ui.Rect // the player bar's cover, which it grows out of
-	npPane      int     // paneLyrics, paneQueue, paneStage, paneComments or paneShow
-	npPaneTop   float32 // how far the cover beside the pane starts below its top
-	lyricScroll ui.ScrollState
-	lyricGlide  lyricGlide
-	lyricAt     int
-	lyricTrack  string
-	queueList   ui.ListState
-	queueAt     int // the row of the queue pane last scrolled to, -1 while it is hidden
-	comments    commentState
-	tabCount    rollState // the count on the comments' tab, as it rolls
+	nowPlaying          bool
+	npOpen              bool    // Now Playing as it last showed: open or not
+	npT                 float32 // how far open Now Playing last showed, 0 to 1
+	npShift             float32 // how far down it last showed, pulled
+	npPull              float32 // how far the pointer has pulled it down
+	npHeld              bool    // whether the pointer presses on it, to pull it
+	npStill             bool    // whether it comes and goes in place, sliding or fading, rather than out of the bar's cover
+	npFrom              ui.Rect // the player bar's cover, which it grows out of
+	npPane              int     // the pane of Now Playing chosen, one of the pane constants
+	npPaneTop           float32 // how far the cover beside the pane starts below its top
+	lyricScroll         ui.ScrollState
+	lyricGlide          lyricGlide
+	lyricAt             int
+	lyricTrack          string
+	queueList           ui.ListState
+	queueAt             int // the row of the queue pane last scrolled to, -1 while it is hidden
+	comments            commentState
+	explanation         explanationState
+	explanationSessions map[string]explanationSession
+	tabCount            rollState // the count on the comments' tab, as it rolls
 
 	radioStarting string // the radio asked for its first songs, or ""
 	stationAt     int    // which of a few stations their switch has chosen
@@ -243,7 +245,7 @@ func (a *app) makeSources() {
 	}
 	a.enabledChanged()
 	a.library = a.libs[0]
-	if lib := a.libOf(a.settings.Source); lib != nil {
+	if lib := a.libOf(a.settings.Source); lib != nil && lib.catalog() {
 		a.library = lib
 	}
 	a.route = route{page: pageHome, src: a.library.id}
@@ -335,6 +337,7 @@ func Run() error {
 	a.useUpdater(i18n.Resolve(loadSettings().Language, systemLanguages()))
 	mygo.App.WhenReady(func() {
 		a.settings = loadSettings()
+		a.explanationSessions = loadExplanationSessions(userDataDir("explanations.json"))
 		a.settings.applyAppearance()
 		i18n.SetLanguage(i18n.Resolve(a.settings.Language, systemLanguages()))
 		a.npPane = a.lyricsPaneChosen()

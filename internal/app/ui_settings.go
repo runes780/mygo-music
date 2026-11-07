@@ -716,8 +716,9 @@ func (a *app) grantPrograms(lib *library, g guarded, on bool) {
 	}()
 }
 
-// sourceSetting is a text field for what a source asks of the listener. It's
-// kept as it's submitted, or as the focus leaves it.
+// sourceSetting is a choice or text field for what a source asks of the
+// listener. Choices keep their value; text is kept as it's submitted or as the
+// focus leaves it.
 func (a *app) sourceSetting(c *ui.Context, lib *library, st music.Setting, p palette) {
 	key := lib.id + "\x00" + st.Key
 	text := a.settingText[key]
@@ -728,9 +729,28 @@ func (a *app) sourceSetting(c *ui.Context, lib *library, st music.Setting, p pal
 	}
 	ui.Column(c).Gap(4).Children(func() {
 		ui.Text(c, st.Label).FontSize(12.5).FontWeight(500)
-		in := ui.TextInput(c.Key("value"), text).Label(st.Label).FontSize(13)
-		if in.Submitted() || !in.Focused() && *text != lib.src.Setting(st.Key) {
-			a.keepSetting(lib, st.Key, *text)
+		if len(st.Options) > 0 {
+			names := make([]string, len(st.Options))
+			chosen := st.Options[0].Label
+			for i, option := range st.Options {
+				names[i] = option.Label
+				if option.Value == *text {
+					chosen = option.Label
+				}
+			}
+			if ui.Select(c.Key("value"), &chosen, names).Label(st.Label).Width(220).Changed() {
+				for i, name := range names {
+					if name == chosen {
+						*text = st.Options[i].Value
+						a.keepSetting(lib, st.Key, *text)
+					}
+				}
+			}
+		} else {
+			in := ui.TextInput(c.Key("value"), text).Label(st.Label).FontSize(13)
+			if in.Submitted() || !in.Focused() && *text != lib.src.Setting(st.Key) {
+				a.keepSetting(lib, st.Key, *text)
+			}
 		}
 		if st.Help != "" {
 			ui.Text(c, st.Help).FontSize(11.5).TextColor(p.muted).LineHeight(1.4)

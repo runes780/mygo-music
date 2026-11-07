@@ -183,6 +183,42 @@ type CommentPage struct {
 	More     bool      `json:"more,omitempty"`
 }
 
+// ExplanationRequest is what a listener wants explained about the track
+// playing. Lyric and Position identify a line they chose; Question is a
+// follow-up they asked. Position is in milliseconds.
+type ExplanationRequest struct {
+	Track    Track  `json:"track"`
+	Lyric    string `json:"lyric,omitempty"`
+	Position int64  `json:"position,omitempty"`
+	Question string `json:"question,omitempty"`
+}
+
+// Explanation is a sourced reading of a song, its lyrics, its creators or its
+// musical language. A source may answer only the parts it knows.
+type Explanation struct {
+	Title    string               `json:"title,omitempty"`
+	Subtitle string               `json:"subtitle,omitempty"`
+	Summary  string               `json:"summary,omitempty"`
+	Genres   []string             `json:"genres,omitempty"`
+	Sections []ExplanationSection `json:"sections,omitempty"`
+	Sources  []ExplanationSource  `json:"sources,omitempty"`
+}
+
+// ExplanationSection is one part of an explanation. Body may hold paragraphs
+// separated by blank lines; Items are a list beneath them.
+type ExplanationSection struct {
+	Title string   `json:"title,omitempty"`
+	Body  string   `json:"body,omitempty"`
+	Items []string `json:"items,omitempty"`
+}
+
+// ExplanationSource is where a claim can be read or checked.
+type ExplanationSource struct {
+	Title     string `json:"title"`
+	URL       string `json:"url"`
+	Publisher string `json:"publisher,omitempty"`
+}
+
 // Browse is a page a source makes up itself, of sections it chooses: what its
 // Home shows, and any other opened from a Link, a MorePage or its Navigation.
 type Browse struct {
@@ -307,11 +343,19 @@ const (
 	PlaybackRemote Playback = "remote"
 )
 
-// A Setting is something a plugin asks the listener for, such as an API key.
-type Setting struct {
-	Key   string `json:"key"`
+// SettingOption is one choice of a setting. Value is kept, Label is shown.
+type SettingOption struct {
+	Value string `json:"value"`
 	Label string `json:"label"`
-	Help  string `json:"help,omitempty"`
+}
+
+// A Setting is something a plugin asks the listener for, such as an API key.
+// With Options it is a choice; without them it is a text field.
+type Setting struct {
+	Key     string          `json:"key"`
+	Label   string          `json:"label"`
+	Help    string          `json:"help,omitempty"`
+	Options []SettingOption `json:"options,omitempty"`
 	// Link is where to get the value.
 	Link string `json:"link,omitempty"`
 }
@@ -360,6 +404,18 @@ type Prompter interface {
 // A source that keeps that itself, as a service does, needn't be one.
 type Recorder interface {
 	Played(track Track)
+}
+
+// An Explainer gives sourced readings of tracks, lyric lines and follow-ups.
+// It is separate from Source so a provider needn't be a music catalog.
+type Explainer interface {
+	Explain(req ExplanationRequest) (*Explanation, error)
+}
+
+// A StreamingExplainer publishes partial answers while it works. The final
+// answer returned replaces the last partial one.
+type StreamingExplainer interface {
+	ExplainStream(req ExplanationRequest, publish func(Explanation)) (*Explanation, error)
 }
 
 // Source is where music comes from. Everything but Info and Can may take a

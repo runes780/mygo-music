@@ -653,7 +653,8 @@ func (a *app) builtinTitle(name string) string {
 // drops down a list of the sources, in the colors of the account menu, with a
 // check by the active one.
 func (a *app) sourceSwitcher(c *ui.Context) {
-	if len(a.libs) < 2 {
+	libs := a.catalogLibs()
+	if len(libs) < 2 {
 		return
 	}
 	p := a.pal
@@ -680,7 +681,7 @@ func (a *app) sourceSwitcher(c *ui.Context) {
 	sel.Popup(func(panel ui.Element) {
 		panel.Margin(6, 0, 0, 0).Padding(5).Gap(1).MinWidth(180).MaxWidth(sidebarWidth+60).
 			Radius(12).Background(pop.fill).Border(0.5, pop.edge).Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2))
-		for _, lib := range a.libs {
+		for _, lib := range libs {
 			name := lib.name()
 			item := sel.Item(lib.id).Label(name).Height(30).PaddingX(8).Gap(8).Radius(7).AlignItems(ui.Center)
 			if item.Highlighted() {

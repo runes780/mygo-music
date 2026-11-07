@@ -35,6 +35,8 @@ var (
 	iconCharts    = strokeIcon(`<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>`)
 	iconQueue     = strokeIcon(`<path d="M16 5H3"/><path d="M11 12H3"/><path d="M11 19H3"/><path d="M21 16V5"/><circle cx="18" cy="16" r="3"/>`)
 	iconLyrics    = strokeIcon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/>`)
+	iconExplain   = strokeIcon(`<path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>`)
+	iconArrowUp   = strokeIcon(`<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>`)
 	iconDown      = strokeIcon(`<path d="m6 9 6 6 6-6"/>`)
 	iconBack      = strokeIcon(`<path d="m15 18-6-6 6-6"/>`)
 	iconForward   = strokeIcon(`<path d="m9 18 6-6-6-6"/>`)

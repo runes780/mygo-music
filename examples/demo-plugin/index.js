@@ -256,6 +256,31 @@ export function lyrics({ id }) {
   };
 }
 
+// An explanation can be of the whole song, a lyric line, or a follow-up
+// question. Any enabled plugin can explain any source's tracks, including local
+// files. Return only what is known, and cite where claims can be checked.
+export function explain({ track, lyric, position, question }) {
+  const subject = lyric ? `“${lyric}”` : question || track.name;
+  return {
+    title: track.name,
+    subtitle: track.artists.map((a) => a.name).join(", "),
+    summary: lyric
+      ? `A reading of ${subject}, at ${Math.floor(position / 1000)} seconds. A real provider would explain its words, references and context here.`
+      : question
+        ? `An answer to “${question}”. A real provider can research the song, its creators and its recording here.`
+        : `An introduction to ${subject}: its origins, musical language, creators and the story behind it.`,
+    genres: ["Example", "Demo"],
+    sections: [
+      {
+        title: "How to listen",
+        body: "Notice how the parts enter, repeat and change. An explanation should separate confirmed facts from interpretation.",
+        items: ["Follow the bass first.", "Then listen to how the other parts interlock."],
+      },
+    ],
+    sources: [{ title: "MyGo Music plugin guide", url: "https://github.com/egoist/mygo-music#plugins", publisher: "MyGo Music" }],
+  };
+}
+
 // Audio: where it is, and what it is. headers go with the request for it.
 export function stream({ id, quality }) {
   if (!byId(id)) throw fail("unavailable");

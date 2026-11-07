@@ -34,7 +34,7 @@ func TestDemoPluginDoesEverything(t *testing.T) {
 		"liked", "isLiked", "like", "likeEpisode", "album", "artist", "saveAlbum", "savedAlbums", "followArtist", "playlists",
 		"playlist", "createPlaylist", "renamePlaylist", "deletePlaylist", "addToPlaylist", "removeFromPlaylist",
 		"movePlaylistTrack", "savePlaylist", "shows", "show", "subscribeShow", "stations", "stationNext", "comments",
-		"likeComment", "postComment", "lyrics", "stream", "remotePlay", "remotePause", "remoteResume", "remoteSeek",
+		"likeComment", "postComment", "lyrics", "explain", "stream", "remotePlay", "remotePause", "remoteResume", "remoteSeek",
 		"remoteVolume", "remoteState", "remoteDevices", "remoteUse",
 	} {
 		if !p.Can(name) {
@@ -145,6 +145,9 @@ func TestDemoPluginDoesEverything(t *testing.T) {
 	}
 	if l, err := p.Lyrics("t2"); err != nil || len(l.Lines) != 1 || len(l.Lines[0].Words) != 3 {
 		t.Errorf("timed lyrics: %+v, %v", l, err)
+	}
+	if e, err := p.Explain(music.ExplanationRequest{Track: music.Track{Name: "Song 1", Artists: []music.Artist{{Name: "The Examples"}}}, Lyric: "A plain line", Position: 1000}); err != nil || len(e.Sections) != 1 || len(e.Sources) != 1 {
+		t.Errorf("explanation: %+v, %v", e, err)
 	}
 
 	// The stream is a file that's there, for the app to play.

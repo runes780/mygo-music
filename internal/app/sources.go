@@ -36,7 +36,7 @@ var capabilities = []string{
 	"shows", "show", "subscribeShow",
 	"stations", "stationNext",
 	"comments", "likeComment", "postComment",
-	"lyrics", "stream",
+	"lyrics", "explain", "explainStream", "stream",
 }
 
 func probeCaps(src music.Source) map[string]bool {
@@ -137,6 +137,28 @@ func (l *library) forget() {
 // can reports whether the source does what's named.
 func (l *library) can(what string) bool { return l != nil && l.caps[what] }
 
+// catalog reports whether the plugin offers music pages or playback, rather
+// than only extending other sources, as an explanation provider does.
+func (l *library) catalog() bool {
+	for _, name := range []string{"home", "search", "recent", "playlists", "shows", "stations", "stream"} {
+		if l.can(name) {
+			return true
+		}
+	}
+	return false
+}
+
+// catalogLibs are the enabled music sources, without provider-only plugins.
+func (a *app) catalogLibs() []*library {
+	libs := make([]*library, 0, len(a.libs))
+	for _, lib := range a.libs {
+		if lib.catalog() {
+			libs = append(libs, lib)
+		}
+	}
+	return libs
+}
+
 // accountUnknown reports whether the source is yet to say who's signed in.
 func (l *library) accountUnknown() bool { return l.can("account") && !l.accountAsked }
 
@@ -211,7 +233,7 @@ func (a *app) activate(lib *library) {
 
 // switchSource goes to a source's Home, as the sidebar's switcher does.
 func (a *app) switchSource(id string) {
-	if lib := a.libOf(id); lib != nil && lib != a.library {
+	if lib := a.libOf(id); lib != nil && lib.catalog() && lib != a.library {
 		a.open(route{page: pageHome, src: id})
 	}
 }

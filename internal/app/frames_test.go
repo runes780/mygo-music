@@ -93,6 +93,39 @@ func TestNowPlayingFrame(t *testing.T) {
 	saveFrame(t, dir, "now-playing.png", tt.Image())
 }
 
+// With MM_FRAMES set, saves the explanation pane and its optional follow-up composer.
+func TestExplanationFrame(t *testing.T) {
+	dir := framesDir(t)
+	a := newTestApp()
+	tracks := framesTracks(a)
+	a.pl.Cue(tracks)
+	a.pl.SetLyrics(nil)
+	a.explanation = explanationState{
+		track: "fake\x001", lib: a.library, loaded: true,
+		answer: &music.Explanation{
+			Title: "Northern Lights", Subtitle: "The Polar Lights · Polar Night",
+			Summary: "A patient piece of ambient jazz built from a repeating piano figure, a rounded bass pulse and drums that favor texture over spectacle.",
+			Genres:  []string{"Modern jazz", "Ambient", "Minimalism"},
+			Sections: []music.ExplanationSection{
+				{Title: "How the parts interlock", Body: "The piano's repeated motif sets the grid, but the bass and drums do not simply follow it. Their accents fill its spaces, creating motion without crowding the melody."},
+				{Title: "How to listen", Body: "Listen once for the low-frequency pulse, then for the small changes in piano density.", Items: []string{"Notice when the bass begins to lead.", "Follow the dynamics rather than waiting for a chorus."}},
+			},
+			Sources: []music.ExplanationSource{{Title: "The making of Polar Night", Publisher: "The Polar Lights", URL: "https://example.com/polar-night"}},
+		},
+	}
+	a.nowPlaying, a.npPane = true, paneExplain
+	tt := ui.NewTester(a.view, 1180, 780)
+	tt.SetDark(true)
+	tt.Advance(2 * time.Second)
+	tt.Frame()
+	saveFrame(t, dir, "explanation.png", tt.Image())
+	a.explanation.asking = true
+	tt.Frame()
+	tt.Advance(time.Second)
+	tt.Frame()
+	saveFrame(t, dir, "explanation-ask.png", tt.Image())
+}
+
 // With MM_FRAMES set, saves Now Playing for a local song with no cover.
 func TestNowPlayingNoCoverFrame(t *testing.T) {
 	dir := framesDir(t)
@@ -187,8 +220,10 @@ func TestSettingsFrame(t *testing.T) {
 	plugin.info.Settings = []music.Setting{
 		{Key: "apiKey", Label: "API Key", Help: "Keys are free for personal use.", Link: "https://example.com/keys"},
 		{Key: "region", Label: "Region"},
+		{Key: "language", Label: "Output Language", Options: []music.SettingOption{{Value: "en", Label: "English"}, {Value: "zh-CN", Label: "简体中文"}}},
 	}
 	plugin.vals["region"] = "Nordics"
+	plugin.vals["language"] = "zh-CN"
 	a.library = addFake(a, plugin)
 	a.account = &music.Account{ID: "1", Name: "Alex"}
 	a.settingsPage = "plugins"

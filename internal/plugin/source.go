@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net/url"
@@ -280,6 +281,28 @@ func (p *Plugin) Lyrics(id string) (*music.Lyrics, error) {
 	return &l, nil
 }
 
+func (p *Plugin) Explain(req music.ExplanationRequest) (*music.Explanation, error) {
+	var e music.Explanation
+	if err := p.callWithin(explainTimeout, "explain", req, &e); err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
+func (p *Plugin) ExplainStream(req music.ExplanationRequest, publish func(music.Explanation)) (*music.Explanation, error) {
+	var e music.Explanation
+	err := p.callStreamWithin(explainTimeout, "explainStream", req, &e, func(raw []byte) {
+		var partial music.Explanation
+		if publish != nil && json.Unmarshal(raw, &partial) == nil {
+			publish(partial)
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
 func (p *Plugin) Stream(id, quality string) (*music.Stream, error) {
 	var s music.Stream
 	if err := p.call("stream", map[string]string{"id": id, "quality": quality}, &s); err != nil {
@@ -337,8 +360,10 @@ func (p *Plugin) RemoteUse(deviceID string) error {
 }
 
 var (
-	_ music.Source   = (*Plugin)(nil)
-	_ music.Recorder = (*Plugin)(nil)
+	_ music.Source             = (*Plugin)(nil)
+	_ music.Recorder           = (*Plugin)(nil)
+	_ music.Explainer          = (*Plugin)(nil)
+	_ music.StreamingExplainer = (*Plugin)(nil)
 )
 
 // hasHeader reports whether headers has name, in any case.

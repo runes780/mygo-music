@@ -1,0 +1,45 @@
+{
+  "id": "song-explainer",
+  "name": "Song Explainer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "permissions": {
+    "network": ["*"]
+  },
+  "settings": [
+    {
+      "key": "apiKey",
+      "label": "API Key",
+      "help": "Your DeepSeek API key. For another OpenAI-compatible provider, use its key; a local provider may not need one.",
+      "link": "https://platform.deepseek.com/api_keys"
+    },
+    {
+      "key": "baseURL",
+      "label": "Base URL",
+      "help": "OpenAI-compatible API address. Leave empty for https://api.deepseek.com."
+    },
+    {
+      "key": "model",
+      "label": "Model",
+      "help": "Leave empty for deepseek-flash, or enter another provider's model ID."
+    },
+    {
+      "key": "outputLanguage",
+      "label": "Output Language",
+      "help": "Default: English. Web research stays in English.",
+      "options": [
+        { "value": "en", "label": "English" },
+        { "value": "zh-CN", "label": "简体中文" },
+        { "value": "ja", "label": "日本語" },
+        { "value": "fr", "label": "Français" },
+        { "value": "de", "label": "Deutsch" },
+        { "value": "es", "label": "Español" }
+      ]
+    },
+    {
+      "key": "webResearch",
+      "label": "Web Research",
+      "help": "DeepSeek only: on by default. Set to off to skip Search API requests and their charges."
+    }
+  ]
+}
