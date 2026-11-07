@@ -97,6 +97,7 @@ func TestNowPlayingFrame(t *testing.T) {
 func TestExplanationFrame(t *testing.T) {
 	dir := framesDir(t)
 	a := newTestApp()
+	fake(a).info.Name = "Song Explainer"
 	tracks := framesTracks(a)
 	a.pl.Cue(tracks)
 	a.pl.SetLyrics(nil)
